@@ -9,9 +9,11 @@ import "image"
 // Batch merges all of the given objects into a single one (representing the batch). It
 // panics if TODO (the objects do not share the same exact shader, textures, etc).
 func Batch(objs ...*Object) *Object {
+	// TODO(slimsag): merge the objects together and return it.
 	return nil
 }
 
+// TODO(slimsag): document this type
 type batch struct {
 	// The merged objects, or nil if the objects need to be merged.
 	*Object
@@ -76,6 +78,7 @@ func (b *batch) remove(obj *Object) {
 
 // Batcher builds batches out of objects automatically.
 type Batcher struct {
+	// TODO(slimsag): document these fields.
 	batches    []*batch
 	batchByObj map[*Object]*batch
 }
@@ -187,6 +190,7 @@ func (b *Batcher) DrawTo(c Canvas, r image.Rectangle, cam *Camera) {
 // batch will have the given object appended to it already, and the internal
 // map of batches-by-object will be updated.
 func (b *Batcher) newBatch(obj *Object) {
+	// TODO(slimsag): cleanup this section.
 	// We explicitly copy the textures slice so that changes to obj by the user
 	// do not affect which type of objects the batch can hold.
 	bt := &batch{
