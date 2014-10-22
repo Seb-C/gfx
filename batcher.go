@@ -32,7 +32,9 @@ type batch struct {
 	objects []*Object
 }
 
-// remove removes the given object from this batch's slice of objects.
+// remove removes the given object from this batch's slice of objects. It also
+// clears the batch such that a merge of the batch's objects is required again
+// (to account for the removed object).
 func (b *batch) remove(obj *Object) {
 	for i, batchObj := range b.objects {
 		if obj != batchObj {
@@ -41,6 +43,10 @@ func (b *batch) remove(obj *Object) {
 		}
 		b.objects = append(b.objects[:i], b.objects[i+1:]...)
 	}
+
+	// Clear the batch, so that it will be recreated (to account for the
+	// removed object) at the next draw.
+	b.Object = nil
 }
 
 // Batcher builds batches out of objects automatically.
@@ -94,10 +100,6 @@ func (b *Batcher) Remove(objs ...*Object) {
 
 		// Remove the object from the batch.
 		bt.remove(obj)
-
-		// Clear the batch, so that it will be recreated (to account for the
-		// removed object) at the next draw.
-		bt.Object = nil
 	}
 }
 
@@ -126,12 +128,8 @@ func (b *Batcher) Update(objs ...*Object) {
 			// The batch we would place the object into is not the one it is
 			// currently residing in. Remove the object from the old batch, add
 			// it to the new one.
-			// TODO(slimsag): add obj to wantBatch
+			// TODO(slimsag): add obj to wantBatch; clear wantBatch.
 			bt.remove(obj)
-
-			// Clear both batches so they will be rebuilt at the next draw.
-			bt.Object = nil
-			wantBatch.Object = nil
 			continue
 		}
 
