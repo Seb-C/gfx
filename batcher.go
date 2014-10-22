@@ -8,7 +8,8 @@ import "image"
 
 // Batch merges all of the given objects into a single one (representing the batch). It
 // panics if TODO (the objects do not share the same exact shader, textures, etc).
-func Batch(objs ...*gfx.Object) *gfx.Object {
+func Batch(objs ...*Object) *Object {
+	return nil
 }
 
 // Batcher builds batches out of objects automatically.
