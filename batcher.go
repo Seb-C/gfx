@@ -69,13 +69,7 @@ func (b *Batcher) Add(objs ...*Object) {
 		bt = b.findBatch(obj)
 		if bt == nil {
 			// No batch exists for the object, create a new one.
-			bt = &batch{
-				stateType:   obj.State,
-				shaderType:  obj.Shader,
-				textureType: make([]*Texture, len(obj.Textures)),
-			}
-			copy(bt.textureType, obj.Textures)
-			b.batches = append(b.batches, bt)
+			b.newBatch(obj)
 		}
 
 		// Add the object to the batch.
@@ -110,10 +104,9 @@ func (b *Batcher) Update(objs ...*Object) {
 		// Find the batch associate with the object.
 		bt, ok := b.batchByObj[obj]
 		if !ok {
-			// The batcher does not contain this object, add it then.
-			// TODO(slimsag): consider locking problems here when making
-			// Batcher safe for concurrent use.
-			b.Add(obj)
+			// The batcher does not contain this object, create a new batch for
+			// the object then.
+			b.newBatch(obj)
 			continue
 		}
 
@@ -142,6 +135,19 @@ func (b *Batcher) Update(objs ...*Object) {
 // method, then the batches will be rebuilt and then drawn to the canvas.
 func (b *Batcher) DrawTo(c Canvas, r image.Rectangle, cam *Camera) {
 	// TODO(slimsag): draw the batches to the canvas.
+}
+
+// newBatch creates a new batch for the given type of object.
+func (b *Batcher) newBatch(obj *Object) {
+	// We explicitly copy the textures slice so that changes to obj by the user
+	// do not affect which type of objects the batch can hold.
+	bt := &batch{
+		stateType:   obj.State,
+		shaderType:  obj.Shader,
+		textureType: make([]*Texture, len(obj.Textures)),
+	}
+	copy(bt.textureType, obj.Textures)
+	b.batches = append(b.batches, bt)
 }
 
 // addToBatch adds the given object to the given batch. It appends the object
