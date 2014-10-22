@@ -12,12 +12,40 @@ func Batch(objs ...*Object) *Object {
 	return nil
 }
 
+type batch struct {
+	// The merged objects, or nil if the objects need to be merged.
+	*Object
+
+	// The graphics state type of this batch. Only graphics objects with
+	// exactly this graphics state can be added to this batch.
+	stateType State
+
+	// The shader type of this batch. Only graphics objects with exactly this
+	// shader can be added to this batch.
+	shaderType *Shader
+
+	// The texture type of this batch. Only graphics objects with exactly this
+	// texture set can be added to this batch.
+	textureType []*Texture
+
+	// The graphics objects residing in this batch.
+	objects []*Object
+}
+
 // Batcher builds batches out of objects automatically.
-type Batcher struct{}
+type Batcher struct {
+	batches []*batch
+}
 
 // Add adds the given objects to the batcher.
 func (b *Batcher) Add(objs ...*Object) {
-	// TODO(slimsag): add the objects.
+	for _, obj := range objs {
+		// TODO(slimsag): what if the batcher already contains the object?
+		batch := b.findBatch(obj)
+		if batch == nil {
+			// TODO(slimsag): create a new batch for the object.
+		}
+	}
 }
 
 // Remove removes the given objects from the batcher.
@@ -33,7 +61,7 @@ func (b *Batcher) Remove(objs ...*Object) {
 //  b.Add(objs...)
 //
 func (b *Batcher) Update(objs ...*Object) {
-	// TODO(slimsag): remove the objects.
+	// TODO(slimsag): update the objects.
 }
 
 // DrawTo draws all of the objects in this batcher to the given rectangle of
@@ -43,4 +71,32 @@ func (b *Batcher) Update(objs ...*Object) {
 // method, then the batches will be rebuilt and then drawn to the canvas.
 func (b *Batcher) DrawTo(c Canvas, r image.Rectangle, cam *Camera) {
 	// TODO(slimsag): draw the batches to the canvas.
+}
+
+// findBatch finds the appropriate batch to place the given object into. If no
+// such batch currently exists, nil is returned.
+func (b *Batcher) findBatch(obj *Object) *batch {
+	// We expect that most objects within a single batcher will be similar --
+	// making a linear search for the correct batch here not too slow.
+	for _, batch := range b.batches {
+		if obj.Shader != batch.shaderType {
+			// Object does not share this batch's shader type.
+			continue
+		}
+		if len(obj.Textures) != len(batch.textureType) {
+			// Object does not share this batch's texture type.
+			continue
+		}
+		for i, tex := range batch.textureType {
+			if obj.Textures[i] != tex {
+				// Object does not share this batch's texture type.
+				continue
+			}
+		}
+		if obj.State != batch.stateType {
+			// Object does not share the this batch's state type.
+			continue
+		}
+	}
+	return nil
 }
