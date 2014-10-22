@@ -60,23 +60,6 @@ func (b *batch) matches(obj *Object) bool {
 	return true
 }
 
-// remove removes the given object from this batch's slice of objects. It also
-// clears the batch such that a merge of the batch's objects is required again
-// (to account for the removed object).
-func (b *batch) remove(obj *Object) {
-	for i, batchObj := range b.objects {
-		if obj != batchObj {
-			// It's not this object.
-			continue
-		}
-		b.objects = append(b.objects[:i], b.objects[i+1:]...)
-	}
-
-	// Clear the batch, so that it will be recreated (to account for the
-	// removed object) at the next draw.
-	b.Object = nil
-}
-
 // Batcher builds batches out of objects automatically.
 type Batcher struct {
 	// The slice of all the batches the batcher currently has.
@@ -122,7 +105,7 @@ func (b *Batcher) Remove(objs ...*Object) {
 		}
 
 		// Remove the object from the batch.
-		bt.remove(obj)
+		b.removeFromBatch(obj, bt)
 	}
 }
 
@@ -149,7 +132,7 @@ func (b *Batcher) Update(objs ...*Object) {
 			// The batch we would place the object into is not the one it is
 			// currently residing in. Remove the object from the old batch, add
 			// it to the new one.
-			bt.remove(obj)
+			b.removeFromBatch(obj, bt)
 
 			// Find an existing batch for the object to go into.
 			wantBatch := b.findBatch(obj)
@@ -226,6 +209,40 @@ func (b *Batcher) addToBatch(obj *Object, bt *batch) {
 
 	// Clear the batch, so that it will be merged once again at the next
 	// draw.
+	bt.Object = nil
+}
+
+// removeFromBatch removes the given object from the given batch's slice of
+// objects. It also clears the batch such that a merge of the batch's objects
+// is required again (to account for the removed object).
+//
+// If the batch only contains the given object (to be removed) then the batch
+// itself is removed as well.
+func (b *Batcher) removeFromBatch(obj *Object, bt *batch) {
+	// If the batch literally only has one object, the one to be removed, then
+	// we just remove the batch itself.
+	if len(bt.objects) == 1 && bt.objects[0] == obj {
+		for i, batch := range b.batches {
+			if bt != batch {
+				// It's not this batch.
+				continue
+			}
+			b.batches = append(b.batches[:i], b.batches[i+1:]...)
+		}
+		return
+	}
+
+	// Find the object and remove it from the batch.
+	for i, batchObj := range bt.objects {
+		if obj != batchObj {
+			// It's not this object.
+			continue
+		}
+		bt.objects = append(bt.objects[:i], bt.objects[i+1:]...)
+	}
+
+	// Clear the batch, so that it will be recreated (to account for the
+	// removed object) at the next draw.
 	bt.Object = nil
 }
 
