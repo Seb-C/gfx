@@ -13,7 +13,8 @@ func Batch(objs ...*Object) *Object {
 	return nil
 }
 
-// TODO(slimsag): document this type
+// A batch represents a single batch of a single type, and all of the objects
+// within that batch. It is only used by the Batcher type.
 type batch struct {
 	// The merged objects, or nil if the objects need to be merged.
 	*Object
@@ -78,8 +79,11 @@ func (b *batch) remove(obj *Object) {
 
 // Batcher builds batches out of objects automatically.
 type Batcher struct {
-	// TODO(slimsag): document these fields.
-	batches    []*batch
+	// The slice of all the batches the batcher currently has.
+	batches []*batch
+
+	// A map of batches by object pointer. This allows us to identify if this
+	// batcher already contains a given object (without searching every batch).
 	batchByObj map[*Object]*batch
 }
 
