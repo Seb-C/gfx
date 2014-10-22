@@ -43,8 +43,22 @@ func (b *Batcher) Add(objs ...*Object) {
 		// TODO(slimsag): what if the batcher already contains the object?
 		batch := b.findBatch(obj)
 		if batch == nil {
-			// TODO(slimsag): create a new batch for the object.
+			// No batch exists for the object, create a new one.
+			batch = &batch{
+				stateType:   obj.State,
+				shaderType:  obj.Shader,
+				textureType: make([]*Texture, len(obj.Textures)),
+			}
+			copy(batch.textureType, obj.Textures)
+			b.batches = append(b.batches, batch)
 		}
+
+		// Add the object to the batch.
+		batch.objects = append(batch.objects, obj)
+
+		// Clear the batch, so that it will be merged once again at the next
+		// draw.
+		batch.Object = nil
 	}
 }
 
