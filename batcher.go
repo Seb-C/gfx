@@ -7,10 +7,47 @@ package gfx
 import "image"
 
 // Batch merges all of the given objects into a single one (representing the batch). It
-// panics if TODO (the objects do not share the same exact shader, textures, etc).
+// panics if there are no arguments or if the objects do not share the same exact:
+//
+//  State
+//  *Shader
+//  []*Texture
+//
 func Batch(objs ...*Object) *Object {
-	// TODO(slimsag): merge the objects together and return it.
-	return nil
+	// If there are no objects to batch, panic.
+	if len(objs) == 0 {
+		panic("Batch: no arguments")
+	}
+
+	// Lock each object, and each of their meshes, for reading.
+	for _, obj := range objs {
+		obj.RLock()
+		defer obj.RUnlock()
+		for _, mesh := range obj.Meshes {
+			mesh.RLock()
+			defer mesh.RUnlock()
+		}
+	}
+
+	// Create a new batch object, with the same state, shader, and textures.
+	batchMesh := NewMesh()
+	batch := NewObject()
+	batch.State = objs[0].State
+	batch.Shader = objs[0].Shader
+	batch.Meshes = []*Mesh{batchMesh}
+
+	// Copy the textures over.
+	batch.Textures = make([]*Texture, len(objs[0].Textures))
+	copy(batch.Textures, objs[0].Textures)
+
+	// Merge each object into the batch object.
+	for _, obj := range objs {
+		// Append every mesh of the object to the batch mesh.
+		for _, mesh := range obj.Meshes {
+			batchMesh.Append(mesh)
+		}
+	}
+	return batch
 }
 
 // A batch represents a single batch of a single type, and all of the objects
