@@ -34,14 +34,22 @@ type batch struct {
 
 // Batcher builds batches out of objects automatically.
 type Batcher struct {
-	batches []*batch
+	batches    []*batch
+	batchByObj map[*Object]*batch
 }
 
 // Add adds the given objects to the batcher.
 func (b *Batcher) Add(objs ...*Object) {
 	for _, obj := range objs {
-		// TODO(slimsag): what if the batcher already contains the object?
-		bt := b.findBatch(obj)
+		bt, ok := b.batchByObj[obj]
+		if ok {
+			// The batcher already contains the object. We don't need to add it
+			// again, so instead just clear the batch and continue.
+			bt.Object = nil
+		}
+
+		// The batcher does not contain the object already.
+		bt = b.findBatch(obj)
 		if bt == nil {
 			// No batch exists for the object, create a new one.
 			bt = &batch{
@@ -55,6 +63,7 @@ func (b *Batcher) Add(objs ...*Object) {
 
 		// Add the object to the batch.
 		bt.objects = append(bt.objects, obj)
+		b.batchByObj[obj] = bt
 
 		// Clear the batch, so that it will be merged once again at the next
 		// draw.
