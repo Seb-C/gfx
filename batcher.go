@@ -170,7 +170,17 @@ func (b *Batcher) Update(objs ...*Object) {
 // If any objects in the batcher have been updated since the last call to this
 // method, then the batches will be rebuilt and then drawn to the canvas.
 func (b *Batcher) DrawTo(c Canvas, r image.Rectangle, cam *Camera) {
-	// TODO(slimsag): draw the batches to the canvas.
+	for _, bt := range b.batches {
+		// If the batch's object is nil, then all of the objects in the batch
+		// need to be merged together to form the object (that will then be
+		// drawn).
+		if bt.Object == nil {
+			bt.Object = Batch(bt.objects...)
+		}
+
+		// Draw the batch.
+		c.Draw(r, bt.Object, cam)
+	}
 }
 
 // newBatch creates a new batch for the given type of object. The returned
