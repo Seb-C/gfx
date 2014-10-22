@@ -221,3 +221,13 @@ func (b *Batcher) findBatch(obj *Object) *batch {
 	}
 	return nil
 }
+
+// NewBatcher returns a new and initialized batcher with the given objects
+// added to it.
+func NewBatcher(objs ...*Object) *Batcher {
+	b := &Batcher{
+		batchByObj: make(map[*Object]*batch, len(objs)),
+	}
+	b.Add(objs...)
+	return b
+}
