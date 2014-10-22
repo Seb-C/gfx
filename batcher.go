@@ -41,24 +41,24 @@ type Batcher struct {
 func (b *Batcher) Add(objs ...*Object) {
 	for _, obj := range objs {
 		// TODO(slimsag): what if the batcher already contains the object?
-		batch := b.findBatch(obj)
-		if batch == nil {
+		bt := b.findBatch(obj)
+		if bt == nil {
 			// No batch exists for the object, create a new one.
-			batch = &batch{
+			bt = &batch{
 				stateType:   obj.State,
 				shaderType:  obj.Shader,
 				textureType: make([]*Texture, len(obj.Textures)),
 			}
-			copy(batch.textureType, obj.Textures)
-			b.batches = append(b.batches, batch)
+			copy(bt.textureType, obj.Textures)
+			b.batches = append(b.batches, bt)
 		}
 
 		// Add the object to the batch.
-		batch.objects = append(batch.objects, obj)
+		bt.objects = append(bt.objects, obj)
 
 		// Clear the batch, so that it will be merged once again at the next
 		// draw.
-		batch.Object = nil
+		bt.Object = nil
 	}
 }
 
