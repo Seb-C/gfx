@@ -104,7 +104,38 @@ func (b *Batcher) Remove(objs ...*Object) {
 //  b.Add(objs...)
 //
 func (b *Batcher) Update(objs ...*Object) {
-	// TODO(slimsag): update the objects.
+	for _, obj := range objs {
+		// Find the batch associate with the object.
+		bt, ok := b.batchByObj[obj]
+		if !ok {
+			// The batcher does not contain this object, add it then.
+			// TODO(slimsag): consider locking problems here when making
+			// Batcher safe for concurrent use.
+			b.Add(obj)
+			continue
+		}
+
+		// Would we still have the object placed into that batch?
+		wantBatch := b.findBatch(obj)
+		if bt != wantBatch {
+			// The batch we would place the object into is not the one it is
+			// currently residing in. Remove the object from the old batch, add
+			// it to the new one.
+
+			// TODO(slimsag): remove obj from bt
+			// TODO(slimsag): add obj to wantBatch
+
+			// Clear both batches so they will be rebuilt at the next draw.
+			bt.Object = nil
+			wantBatch.Object = nil
+			continue
+		}
+
+		// If we're here then we know the object would still be placed in the
+		// same exact batch. All we need to do then is clear the batch so that
+		// it will be recreated at the next draw.
+		bt.Object = nil
+	}
 }
 
 // DrawTo draws all of the objects in this batcher to the given rectangle of
