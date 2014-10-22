@@ -73,7 +73,23 @@ func (b *Batcher) Add(objs ...*Object) {
 
 // Remove removes the given objects from the batcher.
 func (b *Batcher) Remove(objs ...*Object) {
-	// TODO(slimsag): remove the objects.
+	for _, obj := range objs {
+		// Find the batch associate with the object.
+		bt, ok := b.batchByObj[obj]
+		if !ok {
+			// The batcher does not contain this object, do nothing.
+			continue
+		}
+
+		// Remove the object from the batch.
+		for i, batchObj := range bt.objects {
+			if obj != batchObj {
+				// It's not this object.
+				continue
+			}
+			bt.objects = append(bt.objects[:i], bt.objects[i+1:]...)
+		}
+	}
 }
 
 // Update marks all of the given objects as updated. Batches containing these
