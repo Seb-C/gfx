@@ -79,12 +79,7 @@ func (b *Batcher) Add(objs ...*Object) {
 		}
 
 		// Add the object to the batch.
-		bt.objects = append(bt.objects, obj)
-		b.batchByObj[obj] = bt
-
-		// Clear the batch, so that it will be merged once again at the next
-		// draw.
-		bt.Object = nil
+		b.addToBatch(obj, bt)
 	}
 }
 
@@ -128,8 +123,8 @@ func (b *Batcher) Update(objs ...*Object) {
 			// The batch we would place the object into is not the one it is
 			// currently residing in. Remove the object from the old batch, add
 			// it to the new one.
-			// TODO(slimsag): add obj to wantBatch; clear wantBatch.
 			bt.remove(obj)
+			b.addToBatch(obj, wantBatch)
 			continue
 		}
 
@@ -147,6 +142,22 @@ func (b *Batcher) Update(objs ...*Object) {
 // method, then the batches will be rebuilt and then drawn to the canvas.
 func (b *Batcher) DrawTo(c Canvas, r image.Rectangle, cam *Camera) {
 	// TODO(slimsag): draw the batches to the canvas.
+}
+
+// addToBatch adds the given object to the given batch. It appends the object
+// to the batch, updates the internal map of batches-by-object, and clears the
+// batch so it will be rebuilt to account for the newly added object upon the
+// next draw.
+func (b *Batcher) addToBatch(obj *Object, bt *batch) {
+	// Append the object.
+	bt.objects = append(bt.objects, obj)
+
+	// Update the internal map.
+	b.batchByObj[obj] = bt
+
+	// Clear the batch, so that it will be merged once again at the next
+	// draw.
+	bt.Object = nil
 }
 
 // findBatch finds the appropriate batch to place the given object into. If no
