@@ -32,6 +32,31 @@ type batch struct {
 	objects []*Object
 }
 
+// matches tells if the type of this batch matches the given object's type. If
+// so, the object can be safely added to this batch.
+func (b *batch) matches(obj *Object) bool {
+	if obj.Shader != b.shaderType {
+		// Object does not share this batch's shader type.
+		return false
+	}
+	if len(obj.Textures) != len(b.textureType) {
+		// Object does not share this batch's texture type.
+		return false
+	}
+	for i, tex := range b.textureType {
+		if obj.Textures[i] != tex {
+			// Object does not share this batch's texture type.
+			return false
+		}
+	}
+	if obj.State != b.stateType {
+		// Object does not share the this batch's state type.
+		return false
+	}
+	// Object is a perfect match for this batch.
+	return true
+}
+
 // remove removes the given object from this batch's slice of objects. It also
 // clears the batch such that a merge of the batch's objects is required again
 // (to account for the removed object).
@@ -63,6 +88,7 @@ func (b *Batcher) Add(objs ...*Object) {
 			// The batcher already contains the object. We don't need to add it
 			// again, so instead just clear the batch and continue.
 			bt.Object = nil
+			continue
 		}
 
 		// The batcher does not contain the object already.
@@ -70,6 +96,7 @@ func (b *Batcher) Add(objs ...*Object) {
 		if bt == nil {
 			// No batch exists for the object, create a new one.
 			b.newBatch(obj)
+			continue
 		}
 
 		// Add the object to the batch.
@@ -111,13 +138,22 @@ func (b *Batcher) Update(objs ...*Object) {
 		}
 
 		// Would we still have the object placed into that batch?
-		wantBatch := b.findBatch(obj)
-		if bt != wantBatch {
+		if !bt.matches(obj) {
 			// The batch we would place the object into is not the one it is
 			// currently residing in. Remove the object from the old batch, add
 			// it to the new one.
 			bt.remove(obj)
-			b.addToBatch(obj, wantBatch)
+
+			// Find an existing batch for the object to go into.
+			wantBatch := b.findBatch(obj)
+			if wantBatch != nil {
+				// Add the object to the existing batch.
+				b.addToBatch(obj, wantBatch)
+				continue
+			}
+
+			// No existing batch for the object, create a new one for it.
+			b.newBatch(obj)
 			continue
 		}
 
@@ -137,7 +173,9 @@ func (b *Batcher) DrawTo(c Canvas, r image.Rectangle, cam *Camera) {
 	// TODO(slimsag): draw the batches to the canvas.
 }
 
-// newBatch creates a new batch for the given type of object.
+// newBatch creates a new batch for the given type of object. The returned
+// batch will have the given object appended to it already, and the internal
+// map of batches-by-object will be updated.
 func (b *Batcher) newBatch(obj *Object) {
 	// We explicitly copy the textures slice so that changes to obj by the user
 	// do not affect which type of objects the batch can hold.
@@ -145,9 +183,13 @@ func (b *Batcher) newBatch(obj *Object) {
 		stateType:   obj.State,
 		shaderType:  obj.Shader,
 		textureType: make([]*Texture, len(obj.Textures)),
+		objects:     []*Object{obj},
 	}
 	copy(bt.textureType, obj.Textures)
 	b.batches = append(b.batches, bt)
+
+	// Update the internal map.
+	b.batchByObj[obj] = bt
 }
 
 // addToBatch adds the given object to the given batch. It appends the object
@@ -172,23 +214,9 @@ func (b *Batcher) findBatch(obj *Object) *batch {
 	// We expect that most objects within a single batcher will be similar --
 	// making a linear search for the correct batch here not too slow.
 	for _, batch := range b.batches {
-		if obj.Shader != batch.shaderType {
-			// Object does not share this batch's shader type.
-			continue
-		}
-		if len(obj.Textures) != len(batch.textureType) {
-			// Object does not share this batch's texture type.
-			continue
-		}
-		for i, tex := range batch.textureType {
-			if obj.Textures[i] != tex {
-				// Object does not share this batch's texture type.
-				continue
-			}
-		}
-		if obj.State != batch.stateType {
-			// Object does not share the this batch's state type.
-			continue
+		if batch.matches(obj) {
+			// The batch is an appropriate match for this type of object.
+			return batch
 		}
 	}
 	return nil
