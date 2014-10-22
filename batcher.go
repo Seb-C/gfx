@@ -89,6 +89,10 @@ func (b *Batcher) Remove(objs ...*Object) {
 			}
 			bt.objects = append(bt.objects[:i], bt.objects[i+1:]...)
 		}
+
+		// Clear the batch, so that it will be recreated (to account for the
+		// removed object) at the next draw.
+		bt.Object = nil
 	}
 }
 
