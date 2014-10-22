@@ -194,16 +194,19 @@ func (b *Batcher) DrawTo(c Canvas, r image.Rectangle, cam *Camera) {
 // batch will have the given object appended to it already, and the internal
 // map of batches-by-object will be updated.
 func (b *Batcher) newBatch(obj *Object) {
-	// TODO(slimsag): cleanup this section.
+	// Create a new batch with the object's type.
+	bt := &batch{
+		stateType:  obj.State,
+		shaderType: obj.Shader,
+		objects:    []*Object{obj},
+	}
+
 	// We explicitly copy the textures slice so that changes to obj by the user
 	// do not affect which type of objects the batch can hold.
-	bt := &batch{
-		stateType:   obj.State,
-		shaderType:  obj.Shader,
-		textureType: make([]*Texture, len(obj.Textures)),
-		objects:     []*Object{obj},
-	}
+	bt.textureType = make([]*Texture, len(obj.Textures))
 	copy(bt.textureType, obj.Textures)
+
+	// Add the batch to the list of batches in use by the batcher.
 	b.batches = append(b.batches, bt)
 
 	// Update the internal map.
