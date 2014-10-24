@@ -4,7 +4,10 @@
 
 package gfx
 
-import "image"
+import (
+	"fmt"
+	"image"
+)
 
 // Batch merges all of the given objects into a single one (representing the batch). It
 // panics if there are no arguments or if the objects do not share the same exact:
@@ -12,6 +15,10 @@ import "image"
 //  State
 //  *Shader
 //  []*Texture
+//
+// Objects whose meshes make use of independent data slices may not be batched,
+// or else a panic will occur. I.e. a mesh that has vertex colors cannot be
+// batched with a mesh that does not have vertex colors.
 //
 func Batch(objs ...*Object) *Object {
 	// If there are no objects to batch, panic.
@@ -44,7 +51,9 @@ func Batch(objs ...*Object) *Object {
 	for _, obj := range objs {
 		// Append every mesh of the object to the batch mesh.
 		for _, mesh := range obj.Meshes {
-			batchMesh.Append(mesh)
+			if err := batchMesh.append(mesh); err != nil {
+				panic(fmt.Sprintf("Batch: %v", err))
+			}
 		}
 	}
 	return batch
