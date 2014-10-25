@@ -468,7 +468,7 @@ func (m *Mesh) canAppend(other *Mesh) error {
 	}
 	for name, attrib := range m.Attribs {
 		otherAttrib, ok := other.Attribs[name]
-		if !ok || !sliceDataEq(attrib, otherAttrib) {
+		if !ok || !sliceDataEq(attrib.Data, otherAttrib.Data) {
 			return fmt.Errorf("Attribs[%q] is not equal", name)
 		}
 	}
