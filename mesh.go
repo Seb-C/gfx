@@ -481,13 +481,40 @@ func (m *Mesh) append(other *Mesh) error {
 		return err
 	}
 	// TODO(slimsag): handle indices
-	// TODO(slimsag): TexCoords, Attribs
-	// TODO(slimsag): Set FooChanged flags
+	// TODO(slimsag): handle Attribs
 
+	// Append vertices.
 	m.Vertices = append(m.Vertices, other.Vertices...)
+	if len(other.Vertices) > 0 {
+		m.VerticesChanged = true
+	}
+
+	// Append colors.
 	m.Colors = append(m.Colors, other.Colors...)
+	if len(other.Colors) > 0 {
+		m.ColorsChanged = true
+	}
+
+	// Append normals.
 	m.Normals = append(m.Normals, other.Normals...)
+	if len(other.Normals) > 0 {
+		m.NormalsChanged = true
+	}
+
+	// Append bary.
 	m.Bary = append(m.Bary, other.Bary...)
+	if len(other.Bary) > 0 {
+		m.BaryChanged = true
+	}
+
+	// Append texture coordinates.
+	for i, tcs := range m.TexCoords {
+		tcs.Slice = append(tcs.Slice, other.TexCoords[i].Slice...)
+		if len(other.TexCoords[i].Slice) > 0 {
+			tcs.Changed = true
+		}
+		m.TexCoords[i] = tcs
+	}
 	return nil
 }
 
