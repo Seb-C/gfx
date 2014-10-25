@@ -440,6 +440,7 @@ func sliceDataEq(a, b interface{}) bool {
 		return false
 	}
 	if x.Elem().Kind() == reflect.Slice {
+		// Check for subslices, e.g. [][]T, [][][]T, etc.
 		for subslice := 0; subslice < x.Len(); subslice++ {
 			if !sliceDataEq(x.Index(subslice), y.Index(subslice)) {
 				return false
@@ -455,15 +456,23 @@ func sliceDataEq(a, b interface{}) bool {
 // m, and the error is descriptive for user debugging.
 func (m *Mesh) canAppend(other *Mesh) error {
 	// TODO(slimsag): what about vertices and indices?
+
+	// Check the colors slice.
 	if (len(m.Colors) > 0) != (len(other.Colors) > 0) {
 		return errors.New("Colors slice is not equal")
 	}
+
+	// Check the normals slice.
 	if (len(m.Normals) > 0) != (len(other.Normals) > 0) {
 		return errors.New("Normals slice is not equal")
 	}
+
+	// Check the bary slice.
 	if (len(m.Bary) > 0) != (len(other.Bary) > 0) {
 		return errors.New("Bary slice is not equal")
 	}
+
+	// Check the texture coordinates.
 	if len(m.TexCoords) != len(other.TexCoords) {
 		return errors.New("TexCoords slice is not equal")
 	}
@@ -472,6 +481,8 @@ func (m *Mesh) canAppend(other *Mesh) error {
 			return errors.New("TexCoords[n] slice is not equal")
 		}
 	}
+
+	// Check the vertex attribs slices.
 	if len(m.Attribs) != len(other.Attribs) {
 		return errors.New("Attribs map is not equal")
 	}
@@ -488,10 +499,13 @@ func (m *Mesh) canAppend(other *Mesh) error {
 // to unequal data sets (e.g. one mesh has vertex colors and the other does
 // not) then an error is returned and the data is unchanged.
 func (m *Mesh) append(other *Mesh) error {
+	// First, check whether or not the other mesh can actually be appended
+	// properly.
 	err := m.canAppend(other)
 	if err != nil {
 		return err
 	}
+
 	// TODO(slimsag): handle indices
 
 	// Append vertices.
