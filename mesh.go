@@ -478,7 +478,7 @@ func (m *Mesh) canAppend(other *Mesh) error {
 	}
 	for i, tcs := range m.TexCoords {
 		if (len(tcs.Slice) > 0) != (len(other.TexCoords[i].Slice) > 0) {
-			return errors.New("TexCoords[n] slice is not equal")
+			return errors.New(fmt.Sprintf("TexCoords[%d] slice is not equal", i))
 		}
 	}
 
