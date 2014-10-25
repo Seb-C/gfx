@@ -481,7 +481,6 @@ func (m *Mesh) append(other *Mesh) error {
 		return err
 	}
 	// TODO(slimsag): handle indices
-	// TODO(slimsag): handle Attribs
 
 	// Append vertices.
 	m.Vertices = append(m.Vertices, other.Vertices...)
@@ -514,6 +513,17 @@ func (m *Mesh) append(other *Mesh) error {
 			tcs.Changed = true
 		}
 		m.TexCoords[i] = tcs
+	}
+
+	// Append vertex attribs.
+	for name, attrib := range m.Attribs {
+		a := reflect.ValueOf(attrib.Data)
+		b := reflect.ValueOf(other.Attribs[name])
+		attrib.Data = reflect.AppendSlice(a, b).Interface()
+		if b.Len() > 0 {
+			attrib.Changed = true
+		}
+		m.Attribs[name] = attrib
 	}
 	return nil
 }
