@@ -455,7 +455,12 @@ func sliceDataEq(a, b interface{}) bool {
 // not). If a non-nil error is returned the other mesh cannot be appended to
 // m, and the error is descriptive for user debugging.
 func (m *Mesh) canAppend(other *Mesh) error {
-	// TODO(slimsag): what about vertices and indices?
+	// TODO(slimsag): what about indices?
+
+	// Check the vertices slice.
+	if (len(m.Vertices) > 0) != (len(other.Vertices) > 0) {
+		return errors.New("Vertices slice is not equal")
+	}
 
 	// Check the colors slice.
 	if (len(m.Colors) > 0) != (len(other.Colors) > 0) {
