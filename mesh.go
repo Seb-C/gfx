@@ -5,6 +5,9 @@
 package gfx
 
 import (
+	"errors"
+	"fmt"
+	"reflect"
 	"sync"
 
 	"azul3d.org/lmath.v1"
@@ -423,6 +426,69 @@ func (m *Mesh) Destroy() {
 	}
 	m.Reset()
 	meshPool.Put(m)
+}
+
+func sliceDataEq(a, b interface{}) bool {
+	x := reflect.ValueOf(a)
+	y := reflect.ValueOf(b)
+	if (x.Len() > 0) != (y.Len() > 0) {
+		return false
+	}
+	if x.Elem().Kind() == reflect.Slice {
+		for subslice := 0; subslice < x.Len(); subslice++ {
+			if !sliceDataEq(x.Index(subslice), y.Index(subslice)) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (m *Mesh) canAppend(other *Mesh) error {
+	// TODO(slimsag): what about vertices and indices?
+	if (len(m.Colors) > 0) != (len(other.Colors) > 0) {
+		return errors.New("Colors slice is not equal")
+	}
+	if (len(m.Normals) > 0) != (len(other.Normals) > 0) {
+		return errors.New("Normals slice is not equal")
+	}
+	if (len(m.Bary) > 0) != (len(other.Bary) > 0) {
+		return errors.New("Bary slice is not equal")
+	}
+	if len(m.TexCoords) != len(other.TexCoords) {
+		return errors.New("TexCoords slice is not equal")
+	}
+	for i, tcs := range m.TexCoords {
+		if (len(tcs.Slice) > 0) != (len(other.TexCoords[i].Slice) > 0) {
+			return errors.New("TexCoords[n] slice is not equal")
+		}
+	}
+	if len(m.Attribs) != len(other.Attribs) {
+		return errors.New("Attribs map is not equal")
+	}
+	for name, attrib := range m.Attribs {
+		otherAttrib, ok := other.Attribs[name]
+		if !ok || !sliceDataEq(attrib, otherAttrib) {
+			return fmt.Errorf("Attribs[%q] is not equal", name)
+		}
+	}
+	return nil
+}
+
+func (m *Mesh) append(other *Mesh) error {
+	err := m.canAppend(other)
+	if err != nil {
+		return err
+	}
+	// TODO(slimsag): handle indices
+	// TODO(slimsag): TexCoords, Attribs
+	// TODO(slimsag): Set FooChanged flags
+
+	m.Vertices = append(m.Vertices, other.Vertices...)
+	m.Colors = append(m.Colors, other.Colors...)
+	m.Normals = append(m.Normals, other.Normals...)
+	m.Bary = append(m.Bary, other.Bary...)
+	return nil
 }
 
 var meshPool = sync.Pool{
