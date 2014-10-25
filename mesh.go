@@ -428,6 +428,11 @@ func (m *Mesh) Destroy() {
 	meshPool.Put(m)
 }
 
+// sliceDataEq checks if the given two slices are equal data sets. It verifies
+// specificially whether or not both slices have a non-zero length (i.e. if one
+// slice is non-zero-length and the other is zero-length).
+//
+// The function also handles multi-dimensional slices: []T, [][]T, etc.
 func sliceDataEq(a, b interface{}) bool {
 	x := reflect.ValueOf(a)
 	y := reflect.ValueOf(b)
@@ -444,6 +449,10 @@ func sliceDataEq(a, b interface{}) bool {
 	return true
 }
 
+// canAppend tells if a mesh can be appended to another mesh. It checks for
+// unequal data sets (i.e. where one mesh has vertex colors and the other does
+// not). If a non-nil error is returned the other mesh cannot be appended to
+// m, and the error is descriptive for user debugging.
 func (m *Mesh) canAppend(other *Mesh) error {
 	// TODO(slimsag): what about vertices and indices?
 	if (len(m.Colors) > 0) != (len(other.Colors) > 0) {
@@ -475,6 +484,9 @@ func (m *Mesh) canAppend(other *Mesh) error {
 	return nil
 }
 
+// append appends the other mesh to m. If the other mesh cannot be appended due
+// to unequal data sets (e.g. one mesh has vertex colors and the other does
+// not) then an error is returned and the data is unchanged.
 func (m *Mesh) append(other *Mesh) error {
 	err := m.canAppend(other)
 	if err != nil {
