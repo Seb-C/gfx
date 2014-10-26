@@ -77,6 +77,10 @@ type batch struct {
 	// texture set can be added to this batch.
 	textureType []*Texture
 
+	// The mesh type of this batch. Only graphics objects whose meshes have
+	// exactly this mesh type can be added to this batch.
+	meshType *meshType
+
 	// The graphics objects residing in this batch.
 	objects []*Object
 }
@@ -101,6 +105,15 @@ func (b *batch) matches(obj *Object) bool {
 	if obj.State != b.stateType {
 		// Object does not share the this batch's state type.
 		return false
+	}
+	for _, m := range obj.Meshes {
+		m.RLock()
+		err := newMeshType(m).equals(*b.meshType)
+		m.RUnlock()
+		if err != nil {
+			// Object does not share this batch's mesh type.
+			return false
+		}
 	}
 	// Object is a perfect match for this batch.
 	return true
@@ -207,6 +220,15 @@ func (b *Batcher) Update(objs ...*Object) {
 // method, then the batches will be rebuilt and then drawn to the canvas.
 func (b *Batcher) DrawTo(c Canvas, r image.Rectangle, cam *Camera) {
 	for _, bt := range b.batches {
+		// Special case: an object with a nil mesh type must have all of it's
+		// object's drawn independently (i.e. not batched).
+		if bt.meshType == nil {
+			for _, obj := range bt.objects {
+				c.Draw(r, obj, cam)
+			}
+			continue
+		}
+
 		// If the batch's object is nil, then all of the objects in the batch
 		// need to be merged together to form the object (that will then be
 		// drawn).
@@ -222,12 +244,44 @@ func (b *Batcher) DrawTo(c Canvas, r image.Rectangle, cam *Camera) {
 // newBatch creates a new batch for the given type of object. The returned
 // batch will have the given object appended to it already, and the internal
 // map of batches-by-object will be updated.
+//
+// This function properly read-lock's the object as needed.
 func (b *Batcher) newBatch(obj *Object) {
 	// Create a new batch with the object's type.
 	bt := &batch{
 		stateType:  obj.State,
 		shaderType: obj.Shader,
 		objects:    []*Object{obj},
+	}
+
+	obj.RLock()
+	defer obj.RUnlock()
+
+	// Store the mesh type of the object.
+	if len(obj.Meshes) > 0 {
+		// Grab the first mesh's mesh type.
+		first := obj.Meshes[0]
+		first.RLock()
+		meshType := newMeshType(first)
+		bt.meshType = &meshType
+		first.RUnlock()
+
+		// We must handle an unfortunate case: what if there exist multiple
+		// meshes in an object, each of which has a different mesh type?
+		//
+		// If this happens we give the batch a nil meshType, which signifies
+		// this unfortunate circumstance. If a batch has a nil mesh type, it
+		// has each of it's object's drawn independently.
+		for _, mesh := range obj.Meshes {
+			mesh.RLock()
+			mt := newMeshType(mesh)
+			mesh.RUnlock()
+			if err := mt.equals(meshType); err != nil {
+				// The object has mesh's that are not of the same mesh type.
+				bt.meshType = nil
+				break
+			}
+		}
 	}
 
 	// We explicitly copy the textures slice so that changes to obj by the user
