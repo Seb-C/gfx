@@ -454,6 +454,8 @@ func sliceDataEq(a, b interface{}) bool {
 // unequal data sets (i.e. where one mesh has vertex colors and the other does
 // not). If a non-nil error is returned the other mesh cannot be appended to
 // m, and the error is descriptive for user debugging.
+//
+// Both meshes read locks must be held for this method to operate safely.
 func (m *Mesh) canAppend(other *Mesh) error {
 	// Check the vertices slice.
 	if (len(m.Vertices) > 0) != (len(other.Vertices) > 0) {
@@ -501,6 +503,9 @@ func (m *Mesh) canAppend(other *Mesh) error {
 // append appends the other mesh to m. If the other mesh cannot be appended due
 // to unequal data sets (e.g. one mesh has vertex colors and the other does
 // not) then an error is returned and the data is unchanged.
+//
+// m's write lock and other's read lock must be held for this method to operate
+// safely.
 func (m *Mesh) append(other *Mesh) error {
 	// First, check whether or not the other mesh can actually be appended
 	// properly.
