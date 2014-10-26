@@ -455,8 +455,6 @@ func sliceDataEq(a, b interface{}) bool {
 // not). If a non-nil error is returned the other mesh cannot be appended to
 // m, and the error is descriptive for user debugging.
 func (m *Mesh) canAppend(other *Mesh) error {
-	// TODO(slimsag): what about indices?
-
 	// Check the vertices slice.
 	if (len(m.Vertices) > 0) != (len(other.Vertices) > 0) {
 		return errors.New("Vertices slice is not equal")
@@ -511,35 +509,101 @@ func (m *Mesh) append(other *Mesh) error {
 		return err
 	}
 
-	// TODO(slimsag): handle indices
+	// There are four cases which we need to handle:
+	//
+	//  append(Mesh, Mesh)
+	//  append(IndexedMesh, IndexedMesh)
+	//  append(IndexedMesh, Mesh)
+	//  append(Mesh, IndexedMesh)
+	//
+	// In each case we keep the original mesh's status, i.e. anything appended
+	// to a Mesh always ends up as a Mesh. Anything appended to an IndexedMesh
+	// always ends up as an IndexedMesh.
+
+	// appendData appends a single data slice, y, to the given data slice, x.
+	// It operates similar to:
+	//
+	//  m.Vertices = append(m.Vertices, other.Vertices...)
+	//  ->
+	//  m.Vertices = appendData(m.Vertices, other.Vertices).([]Vec3)
+	//
+	// The only different is that fixIndices below sometimes modifies it's
+	// behavior in order to generate correct indices for the data. By utilizing
+	// appendData instead of append directly; indices are automatically fixed
+	// below.
+	appendData := func(x0, y0 interface{}) interface{} {
+		x := reflect.ValueOf(x0)
+		y := reflect.ValueOf(y0)
+		return reflect.AppendSlice(x, y)
+	}
+
+	var (
+		dataLenBefore = uint32(len(m.Vertices))
+		fixIndices    func()
+	)
+	if len(m.Indices) > 0 && len(m.Indices) > 0 {
+		// i.e. append(IndexedMesh, IndexedMesh); For this case in order to fix
+		// the indices we simply append each index of the second mesh offset by
+		// the data length of the first mesh (i.e. len(m.Vertices)).
+		fixIndices = func() {
+			for _, index := range other.Indices {
+				m.Indices = append(m.Indices, index+dataLenBefore)
+			}
+		}
+
+	} else if len(m.Indices) > 0 && len(m.Indices) == 0 {
+		// i.e. append(IndexedMesh, Mesh); For this case we need to fill in
+		// the missing indices (which in our case are simply offset counter
+		// values).
+		fixIndices = func() {
+			for i := 0; i < len(other.Vertices); i++ {
+				m.Indices = append(m.Indices, dataLenBefore+uint32(i))
+			}
+		}
+
+	} else if len(m.Indices) == 0 && len(m.Indices) > 0 {
+		// i.e. append(Mesh, IndexedMesh); For this case we don't need to fix
+		// the indices but we do need a different behavior from appendData;
+		// instead of simply appending the data slices together it will expand
+		// the slice data by looking at each index.
+		appendData = func(x0, y0 interface{}) interface{} {
+			x := reflect.ValueOf(x0)
+			y := reflect.ValueOf(y0)
+			for _, index := range other.Indices {
+				x = reflect.Append(x, y.Index(int(index)))
+			}
+			return x
+		}
+		fixIndices = func() {}
+	}
 
 	// Append vertices.
-	m.Vertices = append(m.Vertices, other.Vertices...)
+	m.Vertices = appendData(m.Vertices, other.Vertices).([]Vec3)
 	if len(other.Vertices) > 0 {
 		m.VerticesChanged = true
 	}
 
 	// Append colors.
-	m.Colors = append(m.Colors, other.Colors...)
+	m.Colors = appendData(m.Colors, other.Colors).([]Color)
 	if len(other.Colors) > 0 {
 		m.ColorsChanged = true
 	}
 
 	// Append normals.
-	m.Normals = append(m.Normals, other.Normals...)
+	m.Normals = appendData(m.Normals, other.Normals).([]Vec3)
 	if len(other.Normals) > 0 {
 		m.NormalsChanged = true
 	}
 
 	// Append bary.
-	m.Bary = append(m.Bary, other.Bary...)
+	m.Bary = appendData(m.Bary, other.Bary).([]Vec3)
 	if len(other.Bary) > 0 {
 		m.BaryChanged = true
 	}
 
 	// Append texture coordinates.
 	for i, tcs := range m.TexCoords {
-		tcs.Slice = append(tcs.Slice, other.TexCoords[i].Slice...)
+		tcs.Slice = appendData(tcs.Slice, other.TexCoords[i].Slice).([]TexCoord)
 		if len(other.TexCoords[i].Slice) > 0 {
 			tcs.Changed = true
 		}
@@ -548,14 +612,15 @@ func (m *Mesh) append(other *Mesh) error {
 
 	// Append vertex attribs.
 	for name, attrib := range m.Attribs {
-		a := reflect.ValueOf(attrib.Data)
-		b := reflect.ValueOf(other.Attribs[name])
-		attrib.Data = reflect.AppendSlice(a, b).Interface()
-		if b.Len() > 0 {
+		attrib.Data = appendData(attrib.Data, other.Attribs[name].Data)
+		if reflect.ValueOf(other.Attribs[name].Data).Len() > 0 {
 			attrib.Changed = true
 		}
 		m.Attribs[name] = attrib
 	}
+
+	// Now that we are done appending data, we fix the indices.
+	fixIndices()
 	return nil
 }
 
