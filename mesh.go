@@ -450,56 +450,6 @@ func sliceDataEq(a, b interface{}) bool {
 	return true
 }
 
-// canAppend tells if a mesh can be appended to another mesh. It checks for
-// unequal data sets (i.e. where one mesh has vertex colors and the other does
-// not). If a non-nil error is returned the other mesh cannot be appended to
-// m, and the error is descriptive for user debugging.
-//
-// Both meshes read locks must be held for this method to operate safely.
-func (m *Mesh) canAppend(other *Mesh) error {
-	// Check the vertices slice.
-	if (len(m.Vertices) > 0) != (len(other.Vertices) > 0) {
-		return errors.New("Vertices slice is not equal")
-	}
-
-	// Check the colors slice.
-	if (len(m.Colors) > 0) != (len(other.Colors) > 0) {
-		return errors.New("Colors slice is not equal")
-	}
-
-	// Check the normals slice.
-	if (len(m.Normals) > 0) != (len(other.Normals) > 0) {
-		return errors.New("Normals slice is not equal")
-	}
-
-	// Check the bary slice.
-	if (len(m.Bary) > 0) != (len(other.Bary) > 0) {
-		return errors.New("Bary slice is not equal")
-	}
-
-	// Check the texture coordinates.
-	if len(m.TexCoords) != len(other.TexCoords) {
-		return errors.New("TexCoords slice is not equal")
-	}
-	for i, tcs := range m.TexCoords {
-		if (len(tcs.Slice) > 0) != (len(other.TexCoords[i].Slice) > 0) {
-			return errors.New(fmt.Sprintf("TexCoords[%d] slice is not equal", i))
-		}
-	}
-
-	// Check the vertex attribs slices.
-	if len(m.Attribs) != len(other.Attribs) {
-		return errors.New("Attribs map is not equal")
-	}
-	for name, attrib := range m.Attribs {
-		otherAttrib, ok := other.Attribs[name]
-		if !ok || !sliceDataEq(attrib.Data, otherAttrib.Data) {
-			return fmt.Errorf("Attribs[%q] is not equal", name)
-		}
-	}
-	return nil
-}
-
 // append appends the other mesh to m. If the other mesh cannot be appended due
 // to unequal data sets (e.g. one mesh has vertex colors and the other does
 // not) then an error is returned and the data is unchanged.
