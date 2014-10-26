@@ -458,6 +458,9 @@ type meshType struct {
 	attribs                         map[string]struct{}
 }
 
+// equals tells if the mesh type's a and b are equal. If nil is returned then
+// the mesh types are equal. If a non-nil error is returned it describes what
+// is different about the meshes.
 func (a meshType) equals(b meshType) error {
 	if a.vertices != b.vertices {
 		return errors.New("Vertices slice is not equal")
@@ -480,6 +483,9 @@ func (a meshType) equals(b meshType) error {
 	return nil
 }
 
+// newMeshType creates a new mesh type describing the given mesh.
+//
+// The mesh must have it's read-lock held for this function to operate safely.
 func newMeshType(m *Mesh) meshType {
 	var mt meshType
 	if len(m.Vertices) > 0 {
