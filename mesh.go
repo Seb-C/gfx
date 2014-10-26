@@ -450,6 +450,64 @@ func sliceDataEq(a, b interface{}) bool {
 	return true
 }
 
+// meshType represents the type of a single mesh; only meshes of the same time
+// may be appended to eachother.
+type meshType struct {
+	vertices, colors, normals, bary bool
+	texCoords                       int
+	attribs                         map[string]struct{}
+}
+
+func (a meshType) equals(b meshType) error {
+	if a.vertices != b.vertices {
+		return errors.New("Vertices slice is not equal")
+	}
+	if a.colors != b.colors {
+		return errors.New("Colors slice is not equal")
+	}
+	if a.normals != b.normals {
+		return errors.New("Colors slice is not equal")
+	}
+	if a.texCoords != b.texCoords {
+		return errors.New("TexCoords slice is not equal")
+	}
+	for name := range a.attribs {
+		if _, ok := b.attribs[name]; ok {
+			continue
+		}
+		return errors.New(fmt.Sprintf("Attribs missing %q", name))
+	}
+	return nil
+}
+
+func newMeshType(m *Mesh) meshType {
+	var mt meshType
+	if len(m.Vertices) > 0 {
+		mt.vertices = true
+	}
+	if len(m.Colors) > 0 {
+		mt.colors = true
+	}
+	if len(m.Normals) > 0 {
+		mt.normals = true
+	}
+	if len(m.Bary) > 0 {
+		mt.bary = true
+	}
+	for _, m := range m.TexCoords {
+		if len(m.Slice) > 0 {
+			mt.texCoords++
+		}
+	}
+	for name := range m.Attribs {
+		s := reflect.ValueOf(m.Attribs[name].Data)
+		if s.Len() > 0 {
+			mt.attribs[name] = struct{}{}
+		}
+	}
+	return mt
+}
+
 // append appends the other mesh to m. If the other mesh cannot be appended due
 // to unequal data sets (e.g. one mesh has vertex colors and the other does
 // not) then an error is returned and the data is unchanged.
@@ -459,8 +517,9 @@ func sliceDataEq(a, b interface{}) bool {
 func (m *Mesh) append(other *Mesh) error {
 	// First, check whether or not the other mesh can actually be appended
 	// properly.
-	err := m.canAppend(other)
-	if err != nil {
+	mType := newMeshType(m)
+	otherType := newMeshType(other)
+	if err := mType.equals(otherType); err != nil {
 		return err
 	}
 
