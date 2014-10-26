@@ -7,6 +7,8 @@ package gfx
 import (
 	"fmt"
 	"image"
+
+	"azul3d.org/lmath.v1"
 )
 
 // Batch merges all of the given objects into a single one (representing the batch). It
@@ -18,8 +20,13 @@ import (
 //
 // Objects whose meshes make use of independent data slices may not be batched,
 // or else a panic will occur. I.e. a mesh that has vertex colors cannot be
-// batched with a mesh that does not have vertex colors.
+// batched with a mesh that does not have vertex colors. This applies to all
+// data slices (including custom per-vertex attributes).
 //
+// Meshes that differ in indexing can be batched fine (i.e. a mesh with Indices
+// and a mesh without Indices can both be in the same batch). The returned
+// batch object will have a meshe that is indexed or non-indexed depending upon
+// what the first mesh encountered is.
 func Batch(objs ...*Object) *Object {
 	// If there are no objects to batch, panic.
 	if len(objs) == 0 {
@@ -37,20 +44,31 @@ func Batch(objs ...*Object) *Object {
 	}
 
 	// Create a new batch object, with the same state, shader, and textures.
-	batchMesh := NewMesh()
 	batch := NewObject()
 	batch.State = objs[0].State
 	batch.Shader = objs[0].Shader
-	batch.Meshes = []*Mesh{batchMesh}
 
 	// Copy the textures over.
 	batch.Textures = make([]*Texture, len(objs[0].Textures))
 	copy(batch.Textures, objs[0].Textures)
 
 	// Merge each object into the batch object.
-	for _, obj := range objs {
-		// Append every mesh of the object to the batch mesh.
-		for _, mesh := range obj.Meshes {
+	var batchMesh *Mesh
+	for objN, obj := range objs {
+		for meshN, mesh := range obj.Meshes {
+			// The first mesh of the first object is directly copied, so we can
+			// ensure that future appends will give us an indexed or
+			// non-indexed mesh depending on what the user wants.
+			if objN == 0 && meshN == 0 {
+				batchMesh = mesh.Copy()
+				batchMesh.KeepDataOnLoad = false
+				batchMesh.Dynamic = false
+				batchMesh.AABB = lmath.Rect3Zero
+				batch.Meshes = []*Mesh{batchMesh}
+				continue
+			}
+
+			// Append the mesh to the batch mesh now.
 			if err := batchMesh.append(mesh); err != nil {
 				panic(fmt.Sprintf("Batch: %v", err))
 			}
