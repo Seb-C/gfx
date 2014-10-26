@@ -88,6 +88,8 @@ type batch struct {
 // matches tells if the type of this batch matches the given object's type. If
 // so, the object can be safely added to this batch.
 func (b *batch) matches(obj *Object) bool {
+	obj.RLock()
+	defer obj.RUnlock()
 	if obj.Shader != b.shaderType {
 		// Object does not share this batch's shader type.
 		return false
