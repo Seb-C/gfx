@@ -499,6 +499,9 @@ func newMeshType(m *Mesh) meshType {
 			mt.texCoords++
 		}
 	}
+	if len(m.Attribs) > 0 {
+		mt.attribs = make(map[string]struct{}, len(m.Attribs))
+	}
 	for name := range m.Attribs {
 		s := reflect.ValueOf(m.Attribs[name].Data)
 		if s.Len() > 0 {
