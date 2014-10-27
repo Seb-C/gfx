@@ -453,18 +453,15 @@ func sliceDataEq(a, b interface{}) bool {
 // meshType represents the type of a single mesh; only meshes of the same time
 // may be appended to eachother.
 type meshType struct {
-	vertices, colors, normals, bary bool
-	texCoords                       int
-	attribs                         map[string]struct{}
+	colors, normals, bary bool
+	texCoords             int
+	attribs               map[string]struct{}
 }
 
 // equals tells if the mesh type's a and b are equal. If nil is returned then
 // the mesh types are equal. If a non-nil error is returned it describes what
 // is different about the meshes.
 func (a meshType) equals(b meshType) error {
-	if a.vertices != b.vertices {
-		return errors.New("Vertices slice is not equal")
-	}
 	if a.colors != b.colors {
 		return errors.New("Colors slice is not equal")
 	}
@@ -488,9 +485,6 @@ func (a meshType) equals(b meshType) error {
 // The mesh must have it's read-lock held for this function to operate safely.
 func newMeshType(m *Mesh) meshType {
 	var mt meshType
-	if len(m.Vertices) > 0 {
-		mt.vertices = true
-	}
 	if len(m.Colors) > 0 {
 		mt.colors = true
 	}
