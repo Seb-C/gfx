@@ -7,6 +7,7 @@ package gfx
 import (
 	"fmt"
 	"image"
+	"sync"
 
 	"azul3d.org/lmath.v1"
 )
@@ -139,8 +140,11 @@ func (b *batch) matches(obj *Object) bool {
 	return true
 }
 
-// Batcher builds batches out of objects automatically.
+// Batcher builds batches out of objects automatically. A batcher can be safely
+// accessed from multiple goroutines without any sort of user synchronization.
 type Batcher struct {
+	access sync.Mutex
+
 	// The slice of all the batches the batcher currently has.
 	batches []*batch
 
@@ -151,6 +155,9 @@ type Batcher struct {
 
 // Add adds the given objects to the batcher.
 func (b *Batcher) Add(objs ...*Object) {
+	b.access.Lock()
+	defer b.access.Unlock()
+
 	for _, obj := range objs {
 		bt, ok := b.batchByObj[obj]
 		if ok {
@@ -175,6 +182,9 @@ func (b *Batcher) Add(objs ...*Object) {
 
 // Remove removes the given objects from the batcher.
 func (b *Batcher) Remove(objs ...*Object) {
+	b.access.Lock()
+	defer b.access.Unlock()
+
 	for _, obj := range objs {
 		// Find the batch associate with the object.
 		bt, ok := b.batchByObj[obj]
@@ -196,6 +206,9 @@ func (b *Batcher) Remove(objs ...*Object) {
 //  b.Add(objs...)
 //
 func (b *Batcher) Update(objs ...*Object) {
+	b.access.Lock()
+	defer b.access.Unlock()
+
 	for _, obj := range objs {
 		// Find the batch associate with the object.
 		bt, ok := b.batchByObj[obj]
@@ -239,6 +252,9 @@ func (b *Batcher) Update(objs ...*Object) {
 // If any objects in the batcher have been updated since the last call to this
 // method, then the batches will be rebuilt and then drawn to the canvas.
 func (b *Batcher) DrawTo(c Canvas, r image.Rectangle, cam *Camera) {
+	b.access.Lock()
+	defer b.access.Unlock()
+
 	for _, bt := range b.batches {
 		// Special case: an object with a nil mesh type must have all of it's
 		// object's drawn independently (i.e. not batched).
