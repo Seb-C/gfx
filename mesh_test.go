@@ -66,11 +66,14 @@ func TestMeshAppend(t *testing.T) {
 		b.Vertices = tst.b
 		b.Indices = tst.bIndices
 
-		// Append mesh b to mesh a.
-		if err := a.append(b); err != nil {
+		// Check if we can append the meshes safely:
+		if err := a.canAppend(b); err != nil {
 			t.Logf("Case %d: %s\n", caseNumber, tst.name)
 			t.Fatal(err)
 		}
+
+		// Append mesh b to mesh a.
+		a.append(b)
 
 		// Validate the vertices slices.
 		if len(tst.want) != len(a.Vertices) {

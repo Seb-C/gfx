@@ -12,23 +12,15 @@ import (
 	"azul3d.org/lmath.v1"
 )
 
-// Batch merges all of the given objects into a single one (representing the batch). It
-// panics if there are no arguments or if the objects do not share the same exact:
+// mergeObjects operates identically to the Batch function, but has two minor
+// differences:
 //
-//  State
-//  *Shader
-//  []*Texture
+// If checkMt is false, the mesh types of each object is not checked at all,
+// which can sometimes be a bottleneck (when it can otherwise be guaranteed
+// that a set of objects have an identical mesh type, e.g. see Batcher).
 //
-// Objects whose meshes make use of independent data slices may not be batched,
-// or else a panic will occur. I.e. a mesh that has vertex colors cannot be
-// batched with a mesh that does not have vertex colors. This applies to all
-// data slices (including custom per-vertex attributes).
-//
-// Meshes that differ in indexing can be batched fine (i.e. a mesh with Indices
-// and a mesh without Indices can both be in the same batch). The returned
-// batch object will have a meshe that is indexed or non-indexed depending upon
-// what the first mesh encountered is.
-func Batch(objs ...*Object) *Object {
+// The objects argument is a slice, which relieves a minor copy overhead.
+func mergeObjects(checkMt bool, objs []*Object) *Object {
 	// If there are no objects to batch, panic.
 	if len(objs) == 0 {
 		panic("Batch: no arguments")
@@ -69,13 +61,38 @@ func Batch(objs ...*Object) *Object {
 				continue
 			}
 
-			// Append the mesh to the batch mesh now.
-			if err := batchMesh.append(mesh); err != nil {
-				panic(fmt.Sprintf("Batch: %v", err))
+			// Check if we can append the mesh.
+			if checkMt {
+				if err := batchMesh.canAppend(mesh); err != nil {
+					panic(fmt.Sprintf("Batch: %v", err))
+				}
 			}
+
+			// Append the mesh to the batch mesh now.
+			batchMesh.append(mesh)
 		}
 	}
 	return batch
+}
+
+// Batch merges all of the given objects into a single one (representing the batch). It
+// panics if there are no arguments or if the objects do not share the same exact:
+//
+//  State
+//  *Shader
+//  []*Texture
+//
+// Objects whose meshes make use of independent data slices may not be batched,
+// or else a panic will occur. I.e. a mesh that has vertex colors cannot be
+// batched with a mesh that does not have vertex colors. This applies to all
+// data slices (including custom per-vertex attributes).
+//
+// Meshes that differ in indexing can be batched fine (i.e. a mesh with Indices
+// and a mesh without Indices can both be in the same batch). The returned
+// batch object will have a meshe that is indexed or non-indexed depending upon
+// what the first mesh encountered is.
+func Batch(objs ...*Object) *Object {
+	return mergeObjects(true, objs)
 }
 
 // A batch represents a single batch of a single type, and all of the objects
@@ -269,7 +286,7 @@ func (b *Batcher) DrawTo(c Canvas, r image.Rectangle, cam *Camera) {
 		// need to be merged together to form the object (that will then be
 		// drawn).
 		if bt.Object == nil {
-			bt.Object = Batch(bt.objects...)
+			bt.Object = mergeObjects(false, bt.objects)
 		}
 
 		// Draw the batch.

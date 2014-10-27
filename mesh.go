@@ -511,21 +511,31 @@ func newMeshType(m *Mesh) meshType {
 	return mt
 }
 
-// append appends the other mesh to m. If the other mesh cannot be appended due
-// to unequal data sets (e.g. one mesh has vertex colors and the other does
-// not) then an error is returned and the data is unchanged.
+// canAppend tells if this mesh can be appended to the other mesh. It checks if
+// this mesh and the other one have unequal data sets (e.g. one mesh has vertex
+// colors and the other does not).
+//
+// nil is returned if the mesh can be appended, a descriptive non-nil error is
+// returned otherwise.
+//
+// Both meshes read locks must be held for this method to operate safely.
+func (m *Mesh) canAppend(other *Mesh) error {
+	mType := newMeshType(m)
+	otherType := newMeshType(other)
+	return mType.equals(otherType)
+}
+
+// append appends the other mesh to m. Prior to appending you should ensure
+// that both meshes share the same type (or else the appension could create an
+// invalid mesh), you can do this simply using canAppend:
+//
+//  if err := m.canAppend(other); err != nil {
+//      // cannot append the other mesh.
+//  }
 //
 // m's write lock and other's read lock must be held for this method to operate
 // safely.
-func (m *Mesh) append(other *Mesh) error {
-	// First, check whether or not the other mesh can actually be appended
-	// properly.
-	mType := newMeshType(m)
-	otherType := newMeshType(other)
-	if err := mType.equals(otherType); err != nil {
-		return err
-	}
-
+func (m *Mesh) append(other *Mesh) {
 	// There are four cases which we need to handle:
 	//
 	//  append(Mesh, Mesh)
@@ -643,7 +653,6 @@ func (m *Mesh) append(other *Mesh) error {
 
 	// Now that we are done appending data, we fix the indices.
 	fixIndices()
-	return nil
 }
 
 var meshPool = sync.Pool{
