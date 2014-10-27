@@ -555,7 +555,7 @@ func (m *Mesh) append(other *Mesh) error {
 		dataLenBefore = uint32(len(m.Vertices))
 		fixIndices    = func() {}
 	)
-	if len(m.Indices) > 0 && len(m.Indices) > 0 {
+	if len(m.Indices) > 0 && len(other.Indices) > 0 {
 		// i.e. append(IndexedMesh, IndexedMesh); For this case in order to fix
 		// the indices we simply append each index of the second mesh offset by
 		// the data length of the first mesh (i.e. len(m.Vertices)).
@@ -565,7 +565,7 @@ func (m *Mesh) append(other *Mesh) error {
 			}
 		}
 
-	} else if len(m.Indices) > 0 && len(m.Indices) == 0 {
+	} else if len(m.Indices) > 0 && len(other.Indices) == 0 {
 		// i.e. append(IndexedMesh, Mesh); For this case we need to fill in
 		// the missing indices (which in our case are simply offset counter
 		// values).
@@ -575,7 +575,7 @@ func (m *Mesh) append(other *Mesh) error {
 			}
 		}
 
-	} else if len(m.Indices) == 0 && len(m.Indices) > 0 {
+	} else if len(m.Indices) == 0 && len(other.Indices) > 0 {
 		// i.e. append(Mesh, IndexedMesh); For this case we don't need to fix
 		// the indices but we do need a different behavior from appendData;
 		// instead of simply appending the data slices together it will expand
@@ -583,6 +583,10 @@ func (m *Mesh) append(other *Mesh) error {
 		appendData = func(x0, y0 interface{}) interface{} {
 			x := reflect.ValueOf(x0)
 			y := reflect.ValueOf(y0)
+			if y.Len() == 0 {
+				// Be careful not to index a slice that does not have any data.
+				return x.Interface()
+			}
 			for _, index := range other.Indices {
 				x = reflect.Append(x, y.Index(int(index)))
 			}
