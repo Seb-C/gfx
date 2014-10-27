@@ -548,12 +548,12 @@ func (m *Mesh) append(other *Mesh) error {
 	appendData := func(x0, y0 interface{}) interface{} {
 		x := reflect.ValueOf(x0)
 		y := reflect.ValueOf(y0)
-		return reflect.AppendSlice(x, y)
+		return reflect.AppendSlice(x, y).Interface()
 	}
 
 	var (
 		dataLenBefore = uint32(len(m.Vertices))
-		fixIndices    func()
+		fixIndices    = func() {}
 	)
 	if len(m.Indices) > 0 && len(m.Indices) > 0 {
 		// i.e. append(IndexedMesh, IndexedMesh); For this case in order to fix
@@ -586,9 +586,8 @@ func (m *Mesh) append(other *Mesh) error {
 			for _, index := range other.Indices {
 				x = reflect.Append(x, y.Index(int(index)))
 			}
-			return x
+			return x.Interface()
 		}
-		fixIndices = func() {}
 	}
 
 	// Append vertices.
