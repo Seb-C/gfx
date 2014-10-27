@@ -595,44 +595,46 @@ func (m *Mesh) append(other *Mesh) error {
 	}
 
 	// Append vertices.
-	m.Vertices = appendData(m.Vertices, other.Vertices).([]Vec3)
 	if len(other.Vertices) > 0 {
+		m.Vertices = appendData(m.Vertices, other.Vertices).([]Vec3)
 		m.VerticesChanged = true
 	}
 
 	// Append colors.
-	m.Colors = appendData(m.Colors, other.Colors).([]Color)
 	if len(other.Colors) > 0 {
+		m.Colors = appendData(m.Colors, other.Colors).([]Color)
 		m.ColorsChanged = true
 	}
 
 	// Append normals.
-	m.Normals = appendData(m.Normals, other.Normals).([]Vec3)
 	if len(other.Normals) > 0 {
+		m.Normals = appendData(m.Normals, other.Normals).([]Vec3)
 		m.NormalsChanged = true
 	}
 
 	// Append bary.
-	m.Bary = appendData(m.Bary, other.Bary).([]Vec3)
 	if len(other.Bary) > 0 {
+		m.Bary = appendData(m.Bary, other.Bary).([]Vec3)
 		m.BaryChanged = true
 	}
 
 	// Append texture coordinates.
 	for i, tcs := range m.TexCoords {
-		tcs.Slice = appendData(tcs.Slice, other.TexCoords[i].Slice).([]TexCoord)
-		if len(other.TexCoords[i].Slice) > 0 {
-			tcs.Changed = true
+		if len(other.TexCoords[i].Slice) == 0 {
+			continue
 		}
+		tcs.Slice = appendData(tcs.Slice, other.TexCoords[i].Slice).([]TexCoord)
+		tcs.Changed = true
 		m.TexCoords[i] = tcs
 	}
 
 	// Append vertex attribs.
 	for name, attrib := range m.Attribs {
-		attrib.Data = appendData(attrib.Data, other.Attribs[name].Data)
-		if reflect.ValueOf(other.Attribs[name].Data).Len() > 0 {
-			attrib.Changed = true
+		if reflect.ValueOf(other.Attribs[name].Data).Len() == 0 {
+			continue
 		}
+		attrib.Data = appendData(attrib.Data, other.Attribs[name].Data)
+		attrib.Changed = true
 		m.Attribs[name] = attrib
 	}
 
