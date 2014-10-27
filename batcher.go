@@ -56,9 +56,6 @@ func Batch(objs ...*Object) *Object {
 	var batchMesh *Mesh
 	for objN, obj := range objs {
 		for meshN, mesh := range obj.Meshes {
-			mesh.RLock()
-			defer mesh.RUnlock()
-
 			// The first mesh of the first object is directly copied, so we can
 			// ensure that future appends will give us an indexed or
 			// non-indexed mesh depending on what the user wants.
