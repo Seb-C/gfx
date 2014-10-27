@@ -29,12 +29,20 @@ func mergeObjects(checkMt bool, objs []*Object) *Object {
 	// Lock each object, and each of their meshes, for reading.
 	for _, obj := range objs {
 		obj.RLock()
-		defer obj.RUnlock()
 		for _, mesh := range obj.Meshes {
 			mesh.RLock()
-			defer mesh.RUnlock()
 		}
 	}
+
+	// When we're done, unlock everything.
+	defer func() {
+		for _, obj := range objs {
+			obj.RUnlock()
+			for _, mesh := range obj.Meshes {
+				mesh.RUnlock()
+			}
+		}
+	}()
 
 	// Create a new batch object, with the same state, shader, and textures.
 	batch := NewObject()
