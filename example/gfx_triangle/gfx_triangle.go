@@ -12,8 +12,8 @@ import (
 	"log"
 	"os"
 
-	"azul3d.org/gfx.v2"
-	"azul3d.org/gfx.v2/window"
+	"azul3d.org/gfx.v2-dev"
+	"azul3d.org/gfx.v2-dev/window"
 	"azul3d.org/keyboard.v1"
 	math "azul3d.org/lmath.v1"
 )
