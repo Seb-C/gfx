@@ -25,7 +25,9 @@ type Props struct {
 }
 
 // String returns a string like:
+//
 //  "Window(Title="Hello World!", Fullscreen=false)"
+//
 func (p *Props) String() string {
 	p.l.RLock()
 	str := fmt.Sprintf("Window(Title=%q, Fullscreen=%q)", p.title, p.fullscreen)
@@ -37,7 +39,9 @@ func (p *Props) String() string {
 // string in the title matching "{FPS}" with the actual frames per second.
 //
 // For example, a title "Hello World - {FPS}" would end up as:
+//
 //  "Hello world - 60FPS"
+//
 func (p *Props) SetTitle(title string) {
 	p.l.Lock()
 	p.title = title
@@ -300,14 +304,36 @@ func (p *Props) CursorGrabbed() bool {
 	return grabbed
 }
 
-// SetPrecision sets the framebuffer precision to be requested.
+// SetPrecision sets the framebuffer precision to be requested when the window
+// is created.
+//
+// Requesting a specific framebuffer precision is simply that -- a request. No
+// guarantee is made that you will receive that precision, as it is completely
+// hardware dependent.
+//
+// To check what framebuffer precision you actually receive, look at the
+// precision of the renderer's canvas:
+//
+//  r.Canvas.Precision()
+//
 func (p *Props) SetPrecision(precision gfx.Precision) {
 	p.l.Lock()
 	p.precision = precision
 	p.l.Unlock()
 }
 
-// Precision returns the requested framebuffer precision to be requested.
+// Precision returns the framebuffer precision that is to be requested when the
+// window is created.
+//
+// As mentioned by the SetPrecision documentation, the precision returned by
+// this function is the one you request -- not strictly the precision that you
+// will receive (as that is hardware dependent).
+//
+// To check what framebuffer precision you actually receive, look at the
+// precision of the renderer's canvas:
+//
+//  r.Canvas.Precision()
+//
 func (p *Props) Precision() gfx.Precision {
 	p.l.RLock()
 	precision := p.precision
@@ -317,6 +343,7 @@ func (p *Props) Precision() gfx.Precision {
 
 // NewProps returns a new initialized set of window properties. The default
 // values for each property are as follows:
+//
 //  Title: "Azul3D - {FPS}"
 //  Size: 800x450
 //  Pos: -1, -1 (centered on screen)
@@ -338,6 +365,7 @@ func (p *Props) Precision() gfx.Precision {
 //      StencilBits: 0,
 //      Samples: 2,
 //  }
+//
 func NewProps() *Props {
 	return &Props{
 		title:         "Azul3D - {FPS}",

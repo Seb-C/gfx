@@ -5,8 +5,10 @@
 package window
 
 import (
+	"errors"
+	"log"
 	"math"
-	"runtime"
+	"sync"
 
 	"azul3d.org/gfx.v2"
 	"azul3d.org/keyboard.v1"
@@ -14,9 +16,11 @@ import (
 )
 
 // EventMask is a bitmask of event types. They can be combined, for instance:
+//
 //  mask := GenericEvents
 //  mask |= MouseEvents
 //  mask |= KeyboardEvents
+//
 // would select generic, mouse, and keyboard events.
 type EventMask uint32
 
@@ -87,14 +91,15 @@ type Window interface {
 	Props() *Props
 
 	// Request makes a request to use a new set of properties, p. It is then
-	// reccomended to make changes to the window using something like:
+	// recommended to make changes to the window using something like:
+	//
 	//  props := window.Props()
 	//  props.SetTitle("Hello World!")
 	//  props.SetSize(640, 480)
 	//  window.Request(props)
 	//
 	// Interpretation of the given properties is left strictly up to the
-	// platform dependant implementation (for instance, on Android you cannot
+	// platform dependent implementation (for instance, on Android you cannot
 	// set the window's size, so instead a request for this is simply ignored.
 	Request(p *Props)
 
@@ -104,6 +109,7 @@ type Window interface {
 	//  if w.Keyboard().Down(keyboard.W) {
 	//      fmt.Println("The W key is currently held down")
 	//  }
+	//
 	Keyboard() *keyboard.Watcher
 
 	// Mouse returns a mouse watcher for the window. It can be used to tell if
@@ -112,6 +118,7 @@ type Window interface {
 	//  if w.Mouse().Down(mouse.Left) {
 	//      fmt.Println("The left mouse button is currently held down")
 	//  }
+	//
 	Mouse() *mouse.Watcher
 
 	// SetClipboard sets the clipboard string.
@@ -138,10 +145,11 @@ type Window interface {
 	// channel, if you do then the same event will be sent over the channel
 	// multiple times. When you no longer want the channel to receive events
 	// then call this function again with NoEvents:
+	//
 	//  w.Notify(ch, NoEvents)
 	//
 	// Multiple calls to Events with different channels works as you would
-	// expect, each channel receives a copy of the events independant of other
+	// expect, each channel receives a copy of the events independent of other
 	// ones.
 	//
 	// Warning: Many people use high-precision mice, some which can reach well
@@ -149,35 +157,150 @@ type Window interface {
 	// highly recommended.
 	//
 	// Warning: Depending on the operating system, window manager, etc, some of
-	// the events may never be sent or may only be sent sporiadically, so plan
+	// the events may never be sent or may only be sent sporadically, so plan
 	// for this.
 	Notify(ch chan<- Event, m EventMask)
 
-	// Close closes the window, and causes Run() to return.
+	// Close closes the window, it must be called or else the main loop (and
+	// inheritely, the application) will not exit.
 	Close()
+}
+
+// numWindows maintains the count of open windows.
+var numWindows struct {
+	sync.Mutex
+	N int
+}
+
+// Num tells the number of windows that are currently open, after adding the
+// given integer to the count.
+//
+// Query how many windows are currently open:
+//
+//  open := window.Num(0)
+//  fmt.Println(open) // e.g. "1"
+//
+// Add two windows to the current count (1) and fetch the new value:
+//
+//  open := window.Num(2)
+//  fmt.Println(open) // e.g. "3"
+//
+// Implementors of the Window interface are the only ones that should modify
+// the window count.
+//
+// This function is safe for access from multiple goroutines concurrently.
+func Num(n int) int {
+	numWindows.Lock()
+	numWindows.N += n
+	n = numWindows.N
+	numWindows.Unlock()
+	return n
+}
+
+// ErrSingleWindow is returned by New if you attempt to create multiple windows
+// on a system that does not support it.
+var ErrSingleWindow = errors.New("only a single window is allowed")
+
+// New creates a new window, and is safe to call from any goroutine.
+//
+// If you just want to create a single window, use the simpler Run function
+// instead.
+//
+// If the properties, p, are nil then DefaultProps is used instead.
+//
+// Interpretation of the properties is left strictly up to the platform
+// dependent implementation (for instance, on Android you cannot set a window's
+// size, so it is ignored).
+//
+// If you attempt to create multiple windows and the system does not allow it,
+// then ErrSingleWindow will be returned (e.g. on mobile platforms where there
+// is no concept of multiple windows).
+//
+// If any error is returned, the window could not be created, and the returned
+// window and renderer are nil.
+//
+// New requests several operations be run on the main loop internally, because
+// of this it cannot be run on the main thread itself. That is, MainLoop must
+// be running for New to complete.
+//
+// The following code works fine, because New is run in a seperate goroutine:
+//
+//  func main() {
+//      go func() {
+//          // New runs in a seperate goroutine, after MainLoop has started.
+//          w, r, err := window.New(nil)
+//          ... use w, r, handle err ...
+//      }()
+//      window.MainLoop()
+//  }
+//
+// The following code does not work, a deadlock occurs because MainLoop is
+// called after New, and New cannot complete unless MainLoop is running.
+//
+//  func main() {
+//      // Won't ever complete: the main loop isn't running yet!
+//      w, r, err := window.New(nil)
+//      ... use w, r, handle err ...
+//      window.MainLoop()
+//  }
+//
+func New(p *Props) (w Window, r gfx.Renderer, err error) {
+	if p == nil {
+		p = DefaultProps
+	}
+
+	// Run doNew on the main loop.
+	done := make(chan struct{}, 1)
+	MainLoopChan <- func() {
+		// Create a new window via the platform-specific backend.
+		w, r, err = doNew(p)
+		done <- struct{}{}
+	}
+	<-done
+
+	// Return if any error occured.
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// No error occured, increment the number of open windows and return.
+	Num(1)
+	return w, r, err
 }
 
 // Run opens a window with the given properties and runs the given graphics
 // loop in a separate goroutine.
 //
-// Interpretation of the given properties is left strictly up to the platform
-// dependant implementation (for instance, on Android you cannot set the
-// window's size so it is simply ignored).
+// This function automatically locks the OS thread for you.
 //
-// Requesting a specific framebuffer configuration via Props.SetPrecision is
-// just a request. You may be given some other configuration (most likely one
-// closest to it). You can check what you received by looking at:
-//  r.Canvas.Precision()
-//
-// If the properties are nil, DefaultProps is used instead.
+// For more documentation about the behavior of Run, see the New function.
 func Run(gfxLoop func(w Window, r gfx.Renderer), p *Props) {
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-	if p == nil {
-		p = NewProps()
-	}
 	if gfxLoop == nil {
 		panic("window: nil graphics loop function!")
 	}
-	doRun(gfxLoop, p)
+
+	// Create a new window in a seperate goroutine, because the New function
+	// requires that the main loop be running before it can complete.
+	go func() {
+		// Create the window with the given properties.
+		w, r, err := New(p)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// If the gfxLoop panics, we should still close the window (or else the
+		// user's screen resolution won't be restored, for example).
+		defer func() {
+			if r := recover(); r != nil {
+				w.Close()
+				panic(r)
+			}
+		}()
+
+		// Enter the graphics loop.
+		gfxLoop(w, r)
+	}()
+
+	// Enter the main loop now.
+	MainLoop()
 }
