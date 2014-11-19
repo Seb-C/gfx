@@ -341,7 +341,7 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 	shader.GLSLFrag = glslFrag
 
 	// Create the background.
-	bgPicture := createPicture(r, absPath("gfx_stencil/yi_han_cheol.jpg"))
+	bgPicture := createPicture(r, absPath("gfx_stencil/yi_han_cheol.png"))
 	bgPicture.Shader = shader
 	bgPicture.State.StencilTest = true
 	bgPicture.State.StencilFront = gfx.StencilState{
